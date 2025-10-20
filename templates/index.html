@@ -1,24 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PulseFrame</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <div class="container">
-    <h1>🎵 PulseFrame</h1>
-    <form method="POST" enctype="multipart/form-data">
-      <input type="file" name="audio" accept=".wav" required>
-      <button type="submit">Visualise</button>
-    </form>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseFrame 🎵</title>
 
-    {% if image_path %}
-      <div class="result">
-        <h2>Result</h2>
-        <img src="{{ url_for('waveform', filename=image_path.split('/')[-1]) }}" alt="Waveform">
-      </div>
+  <style>
+    body {
+      background-color: #0d1117;
+      color: #c9d1d9;
+      font-family: Inter, system-ui, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    h1 {
+      color: #58a6ff;
+      font-size: 2.4rem;
+      margin-bottom: 0.2rem;
+    }
+    p {
+      color: #8b949e;
+      margin-top: 0;
+      margin-bottom: 2rem;
+    }
+    form {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+    }
+    input[type="file"] {
+      background: #161b22;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 8px;
+      border-radius: 6px;
+      width: 250px;
+    }
+    button {
+      background-color: #238636;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #2ea043;
+    }
+    canvas {
+      display: block;
+      margin: 30px auto;
+      background: #000;
+      border-radius: 8px;
+    }
+    audio {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>PulseFrame 🎵</h1>
+  <p>Upload a <code>.wav</code> file to generate a waveform, frequency spectrum, and live animation.</p>
+
+    <form method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".wav" required />
+    <button type="submit">Generate</button>
+  </form>
+
+  <!-- Container for Flask-rendered waveform + spectrum -->
+  <div id="results">
+    {% if waveform_url %}
+      <img src="{{ waveform_url }}" alt="Waveform" style="width: 80%; max-width: 800px; margin-top: 20px; border-radius: 8px;" />
+    {% endif %}
+    {% if spectrum_url %}
+      <img src="{{ spectrum_url }}" alt="Spectrum" style="width: 80%; max-width: 800px; margin-top: 20px; border-radius: 8px;" />
     {% endif %}
   </div>
+
+  <!-- 🎧 Live Spectrum Visualiser -->
+  <script>
+    const fileInput = document.querySelector('input[type="file"]');
+    let audioContext, analyser, dataArray, bufferLength, source, canvas, ctx, audio;
+
+    fileInput.addEventListener('change', event => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Remove existing visualiser + audio elements if they exist
+      document.querySelectorAll('audio, canvas').forEach(el => el.remove());
+
+      // Create an audio element for playback
+      const url = URL.createObjectURL(file);
+      audio = new Audio(url);
+      audio.controls = true;
+      document.body.appendChild(audio);
+
+      // Create canvas for spectrum animation
+      canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 200;
+      ctx = canvas.getContext('2d');
+      document.body.appendChild(canvas);
+
+      // Create Web Audio context and analyser
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioContext.createAnalyser();
+      source = audioContext.createMediaElementSource(audio);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+
+      analyser.fftSize = 256;
+      bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(bufferLength);
+
+      // Draw animated spectrum bars
+      function draw() {
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = dataArray[i];
+          const hue = i * 3; // color spread
+          ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+          ctx.fillRect(x, canvas.height - barHeight / 1.5, barWidth, barHeight / 1.5);
+          x += barWidth + 1;
+        }
+      }
+
+      audio.onplay = () => {
+        if (audioContext.state === "suspended") {
+          audioContext.resume();
+        }
+        draw();
+      };
+    });
+  </script>
 </body>
 </html>
