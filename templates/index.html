@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PulseFrame</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 PulseFrame</h1>
+    <form method="POST" enctype="multipart/form-data">
+      <input type="file" name="audio" accept=".wav" required>
+      <button type="submit">Visualise</button>
+    </form>
+
+    {% if image_path %}
+      <div class="result">
+        <h2>Result</h2>
+        <img src="{{ url_for('waveform', filename=image_path.split('/')[-1]) }}" alt="Waveform">
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

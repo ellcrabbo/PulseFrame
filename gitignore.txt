@@ -1,0 +1,52 @@
+# --- Python basics ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*$py.class
+
+# --- Virtual environment ---
+venv/
+env/
+.venv/
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.log
+
+# --- Build / packaging ---
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Flask specific ---
+instance/
+uploads/
+outputs/
+*.db
+
+# --- Matplotlib / cache ---
+*.png
+*.pdf
+*.svg
+*.mp4
+matplotlibrc
+
+# --- Environment files ---
+.env
+.env.*
+
+# --- Jupyter (if used later) ---
+.ipynb_checkpoints/
+
+# --- Other ---
+# Ignore any temporary test files
+test_*.py
+tmp/

@@ -1,0 +1,4 @@
+flask==3.0.3
+numpy==1.26.4
+soundfile==0.12.1
+plotext==5.2.8

@@ -1,0 +1,26 @@
+body {
+  background-color: #222831;
+  color: #EEEEEE;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+.container {
+  margin-top: 50px;
+}
+input, button {
+  padding: 8px;
+  margin-top: 10px;
+  border-radius: 5px;
+}
+button {
+  background-color: #00ADB5;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+.result img {
+  margin-top: 30px;
+  max-width: 90%;
+  border: 2px solid #00ADB5;
+  border-radius: 10px;
+}
