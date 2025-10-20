@@ -5,7 +5,7 @@ PulseFrame is a Flask-backed music visualiser that pairs offline waveform and sp
 ## Features
 - Upload `.wav` audio directly through the browser (no external services required).
 - Generates waveform and log-scaled spectrum images with matplotlib using a dark theme.
-- Adds a Web Audio API visualiser that highlights both low-end and treble activity.
+- Adds Web Audio visual modes: a glowing radial pulse plus classic spectrum bars.
 - Persists uploads in `static/uploads/` with unique filenames for easy sharing.
 - Works fully offline once dependencies are installed.
 
@@ -28,6 +28,7 @@ python3 app.py
 The development server runs at `http://127.0.0.1:5000/` by default. Open it in your browser, choose a `.wav` file, and click **Process Audio**. The page displays:
 - The uploaded audio in a native HTML audio player.
 - Live spectrum animation driven by `AnalyserNode`.
+- Visual mode selector to switch between radial pulse and classic bars.
 - Static waveform and spectrum plots rendered via matplotlib.
 
 ## Project Structure

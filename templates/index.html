@@ -163,10 +163,51 @@
       padding: 6px;
     }
 
+    .visualiser-controls {
+      justify-self: flex-end;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 255, 255, 0.1);
+      background: rgba(10, 18, 32, 0.6);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .visualiser-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .visualiser-controls select {
+      appearance: none;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 255, 255, 0.28);
+      background: rgba(6, 10, 20, 0.9);
+      color: var(--text-primary);
+      padding: 6px 18px 6px 14px;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border 0.2s ease;
+    }
+
+    .visualiser-controls select:hover,
+    .visualiser-controls select:focus {
+      border-color: rgba(0, 255, 255, 0.55);
+      outline: none;
+    }
+
     canvas#visualiser {
       width: 100%;
       height: auto;
-      max-height: 320px;
+      max-height: 360px;
       background: linear-gradient(160deg, rgba(5, 8, 14, 0.95), rgba(2, 4, 8, 0.9));
       border-radius: 18px;
       border: 1px solid rgba(0, 255, 255, 0.12);
@@ -238,7 +279,14 @@
 
     <section class="player">
       <audio id="audio-player" controls {% if audio_url %}src="{{ audio_url }}"{% endif %}></audio>
-      <canvas id="visualiser" width="960" height="260"></canvas>
+      <div class="visualiser-controls">
+        <label for="visual-mode">Visual mode</label>
+        <select id="visual-mode" name="visual-mode">
+          <option value="radialPulse" selected>Radial Pulse</option>
+          <option value="bars">Spectrum Bars</option>
+        </select>
+      </div>
+      <canvas id="visualiser" width="960" height="360"></canvas>
     </section>
 
     <section class="plots">
@@ -264,6 +312,7 @@
       const canvas = document.getElementById("visualiser");
       const ctx = canvas.getContext("2d");
       const fileNameLabel = document.querySelector(".file-name");
+      const modeSelect = document.getElementById("visual-mode");
 
       let audioContext;
       let analyser;
@@ -274,6 +323,15 @@
 
       const BAR_GAP_RATIO = 0.25;
       const MAX_BARS = 160;
+      const VISUAL_MODES = {
+        bars: "bars",
+        radialPulse: "radialPulse",
+      };
+      let visualMode = VISUAL_MODES.radialPulse;
+
+      let lastFrameTime = null;
+      let rotationOffset = 0;
+      const particles = [];
 
       const setFileName = (name) => {
         const defaultText = fileNameLabel?.dataset?.default || "No file selected";
@@ -302,23 +360,17 @@
         analyser.connect(audioContext.destination);
       };
 
-      const clearCanvas = () => {
-        ctx.fillStyle = "rgba(2, 6, 16, 0.82)";
+      const wipeCanvas = () => {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "rgba(2, 6, 16, 0.92)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       };
 
-      const drawSpectrum = () => {
-        if (!analyser || !dataArray) {
-          clearCanvas();
-          return;
-        }
+      const renderBars = (step, barCount) => {
+        wipeCanvas();
 
-        analyser.getByteFrequencyData(dataArray);
-        clearCanvas();
-
-        const bufferLength = dataArray.length;
-        const step = Math.max(1, Math.floor(bufferLength / MAX_BARS));
-        const barCount = Math.max(1, Math.floor(bufferLength / step));
         const barSlotWidth = canvas.width / barCount;
         const barWidth = barSlotWidth * (1 - BAR_GAP_RATIO);
         const halfGap = (barSlotWidth - barWidth) / 2;
@@ -326,7 +378,7 @@
         for (let barIndex = 0; barIndex < barCount; barIndex++) {
           const dataIndex = barIndex * step;
           let peak = 0;
-          for (let i = dataIndex; i < dataIndex + step && i < bufferLength; i++) {
+          for (let i = dataIndex; i < dataIndex + step && i < dataArray.length; i++) {
             if (dataArray[i] > peak) {
               peak = dataArray[i];
             }
@@ -334,29 +386,185 @@
 
           const normalized = peak / 255;
           const emphasised = Math.pow(normalized, 0.75);
-          const highBandBoost = 0.9 + 0.6 * (barIndex / (barCount - 1 || 1));
-          const value = Math.min(1, emphasised * highBandBoost * 1.1);
+          const value = Math.min(1, emphasised * 1.05);
           const barHeight = value * canvas.height * 0.9;
           const x = barIndex * barSlotWidth + halfGap;
 
           const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - barHeight);
-          gradient.addColorStop(0, "rgba(0, 255, 255, 0.06)");
+          gradient.addColorStop(0, "rgba(0, 255, 255, 0.08)");
           gradient.addColorStop(0.5, "rgba(124, 58, 237, 0.6)");
           gradient.addColorStop(1, "rgba(0, 255, 255, 0.95)");
 
           ctx.fillStyle = gradient;
-          ctx.shadowColor = "rgba(0, 255, 255, 0.75)";
-          ctx.shadowBlur = barHeight > 0 ? 22 : 0;
-          ctx.fillRect(x, canvas.height - barHeight, barWidth * 0.75, barHeight);
+          ctx.shadowColor = "rgba(0, 255, 255, 0.6)";
+          ctx.shadowBlur = barHeight > 0 ? 18 : 0;
+          ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+      };
+
+      const updateParticles = (delta, spawnStrength, centerX, centerY, minRadius, maxRadius) => {
+        const boundedStrength = Math.min(1, spawnStrength);
+        const spawnCount = Math.round(boundedStrength * 12);
+
+        for (let i = 0; i < spawnCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const baseRadius = minRadius * (0.55 + Math.random() * 0.3);
+          const life = 0.75 + Math.random() * 0.8;
+          particles.push({
+            angle,
+            radius: baseRadius,
+            radialVelocity: 150 + Math.random() * 220,
+            rotationVelocity: (Math.random() - 0.5) * 1.2,
+            life,
+            ttl: life,
+            size: 2 + Math.random() * 4,
+            hue: 190 + Math.random() * 120,
+            alpha: 0.45 + Math.random() * 0.35,
+          });
+        }
+
+        if (particles.length > 240) {
+          particles.splice(0, particles.length - 240);
+        }
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+
+        for (let index = particles.length - 1; index >= 0; index--) {
+          const particle = particles[index];
+          particle.life -= delta;
+          particle.radius += particle.radialVelocity * delta;
+          particle.angle += particle.rotationVelocity * delta;
+
+          if (particle.life <= 0 || particle.radius > maxRadius * 1.25) {
+            particles.splice(index, 1);
+            continue;
+          }
+
+          const fade = particle.life / particle.ttl;
+          const x = centerX + Math.cos(particle.angle + rotationOffset * 0.6) * particle.radius;
+          const y = centerY + Math.sin(particle.angle + rotationOffset * 0.6) * particle.radius;
+          const size = particle.size * (1 + (1 - fade) * 1.5);
+          const opacity = Math.max(0, fade) * particle.alpha * (0.55 + boundedStrength * 0.55);
+
+          ctx.shadowColor = `hsla(${particle.hue}, 95%, 65%, ${opacity})`;
+          ctx.shadowBlur = 18;
+          ctx.fillStyle = `hsla(${particle.hue}, 95%, 65%, ${opacity})`;
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+      };
+
+      const renderRadialPulse = (step, barCount, delta) => {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "rgba(3, 8, 20, 0.22)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const maxRadius = Math.min(centerX, centerY) * 0.92;
+        const minRadius = maxRadius * 0.3;
+        const angleStep = (Math.PI * 2) / barCount;
+        const arcSpan = angleStep * 0.78;
+
+        rotationOffset += delta * 0.55;
+
+        let highBandEnergy = 0;
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(rotationOffset);
+        ctx.lineCap = "round";
+
+        for (let barIndex = 0; barIndex < barCount; barIndex++) {
+          const dataIndex = barIndex * step;
+          let peak = 0;
+          for (let i = dataIndex; i < dataIndex + step && i < dataArray.length; i++) {
+            if (dataArray[i] > peak) {
+              peak = dataArray[i];
+            }
+          }
+
+          const normalized = peak / 255;
+          const emphasised = Math.pow(normalized, 0.82);
+          const radialPosition = barCount > 1 ? barIndex / (barCount - 1) : 0;
+          const radius = minRadius + (maxRadius - minRadius) * radialPosition;
+          const thickness = 1.8 + emphasised * 12.5;
+          const hue = 190 + radialPosition * 120;
+          const lightness = 55 + emphasised * 25;
+          const alpha = 0.18 + emphasised * 0.68;
+
+          if (radialPosition > 0.64) {
+            highBandEnergy = Math.max(highBandEnergy, emphasised);
+          }
+
+          ctx.save();
+          ctx.rotate(angleStep * barIndex);
+
+          ctx.strokeStyle = `hsla(${hue}, 95%, ${lightness}%, ${alpha})`;
+          ctx.lineWidth = thickness;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, -arcSpan / 2, arcSpan / 2);
+          ctx.stroke();
+
+          const pulseAlpha = Math.max(0, emphasised - 0.2) * 0.65;
+          if (pulseAlpha > 0.01) {
+            const previousComposite = ctx.globalCompositeOperation;
+            ctx.globalCompositeOperation = "lighter";
+            ctx.strokeStyle = `hsla(${hue}, 95%, 72%, ${pulseAlpha})`;
+            ctx.lineWidth = thickness * 2.6;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius + thickness * 0.8, -arcSpan / 2, arcSpan / 2);
+            ctx.stroke();
+            ctx.globalCompositeOperation = previousComposite;
+          }
+
+          ctx.restore();
+        }
+
+        ctx.restore();
+        ctx.lineCap = "butt";
+
+        updateParticles(delta, highBandEnergy, centerX, centerY, minRadius, maxRadius);
+      };
+
+      const drawSpectrum = (now) => {
+        if (!analyser || !dataArray) {
+          wipeCanvas();
+          return;
+        }
+
+        if (lastFrameTime === null) {
+          lastFrameTime = now;
+        }
+
+        const delta = Math.min((now - lastFrameTime) / 1000, 0.12);
+        lastFrameTime = now;
+
+        analyser.getByteFrequencyData(dataArray);
+        const bufferLength = dataArray.length;
+        const step = Math.max(1, Math.floor(bufferLength / MAX_BARS));
+        const barCount = Math.max(1, Math.floor(bufferLength / step));
+
+        if (visualMode === VISUAL_MODES.radialPulse) {
+          renderRadialPulse(step, barCount, delta);
+        } else {
+          renderBars(step, barCount);
         }
 
         animationId = requestAnimationFrame(drawSpectrum);
       };
 
       const startAnimation = () => {
-        if (!audioContext) {
-          initialiseAnalyser();
-        }
+        initialiseAnalyser();
 
         if (!audioContext) {
           return;
@@ -366,9 +574,12 @@
           audioContext.resume();
         }
 
-        if (!animationId) {
-          animationId = requestAnimationFrame(drawSpectrum);
+        if (animationId) {
+          return;
         }
+
+        lastFrameTime = null;
+        animationId = requestAnimationFrame(drawSpectrum);
       };
 
       const stopAnimation = () => {
@@ -376,14 +587,27 @@
           cancelAnimationFrame(animationId);
           animationId = null;
         }
-        clearCanvas();
+        lastFrameTime = null;
+        rotationOffset = 0;
+        particles.length = 0;
+        wipeCanvas();
       };
 
-      clearCanvas();
+      wipeCanvas();
 
       audioElement.addEventListener("play", startAnimation);
       audioElement.addEventListener("pause", stopAnimation);
       audioElement.addEventListener("ended", stopAnimation);
+
+      if (modeSelect) {
+        visualMode = VISUAL_MODES[modeSelect.value] || VISUAL_MODES.radialPulse;
+        modeSelect.addEventListener("change", (event) => {
+          visualMode = VISUAL_MODES[event.target.value] || VISUAL_MODES.radialPulse;
+          rotationOffset = 0;
+          particles.length = 0;
+          wipeCanvas();
+        });
+      }
 
       fileInput.addEventListener("change", (event) => {
         const [file] = event.target.files;
