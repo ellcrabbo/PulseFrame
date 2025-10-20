@@ -3,148 +3,411 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PulseFrame 🎵</title>
-
+  <title>PulseFrame — Live Spectrum Visualiser</title>
   <style>
+    :root {
+      color-scheme: dark;
+      --bg-outer: #05070f;
+      --bg-inner: #101830;
+      --accent: #0ff;
+      --accent-alt: #7c3aed;
+      --accent-soft: rgba(0, 255, 255, 0.2);
+      --text-primary: #e6edf3;
+      --text-muted: #8b95a9;
+      --danger: #ff6b6b;
+      font-size: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      background-color: #0d1117;
-      color: #c9d1d9;
-      font-family: Inter, system-ui, sans-serif;
-      text-align: center;
       margin: 0;
-      padding: 40px 20px;
-    }
-    h1 {
-      color: #58a6ff;
-      font-size: 2.4rem;
-      margin-bottom: 0.2rem;
-    }
-    p {
-      color: #8b949e;
-      margin-top: 0;
-      margin-bottom: 2rem;
-    }
-    form {
+      min-height: 100vh;
       display: flex;
       justify-content: center;
+      align-items: flex-start;
+      background: radial-gradient(circle at top, rgba(40, 60, 120, 0.4), transparent 60%),
+                  radial-gradient(circle at bottom, rgba(20, 150, 150, 0.3), transparent 65%),
+                  linear-gradient(160deg, var(--bg-outer), #040510 55%, #020106);
+      color: var(--text-primary);
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      padding: 40px 20px 80px;
+    }
+
+    main.wrapper {
+      width: min(100%, 1080px);
+      background: linear-gradient(160deg, rgba(15, 20, 30, 0.85), rgba(10, 11, 20, 0.9));
+      border: 1px solid rgba(0, 255, 255, 0.08);
+      border-radius: 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+      padding: 40px clamp(24px, 4vw, 48px);
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    header.hero {
+      text-align: center;
+    }
+
+    header.hero h1 {
+      font-size: clamp(2.2rem, 3vw, 3rem);
+      margin: 0 0 0.4rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
+    }
+
+    header.hero p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .alert {
+      text-align: center;
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: rgba(255, 107, 107, 0.12);
+      border: 1px solid rgba(255, 107, 107, 0.35);
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    form.upload {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 2rem;
     }
-    input[type="file"] {
-      background: #161b22;
-      color: #c9d1d9;
-      border: 1px solid #30363d;
-      padding: 8px;
-      border-radius: 6px;
-      width: 250px;
-    }
-    button {
-      background-color: #238636;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
+
+    .file-input {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 16px;
+      background: rgba(15, 22, 40, 0.7);
+      border-radius: 16px;
+      border: 1px solid rgba(0, 255, 255, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
       cursor: pointer;
-      transition: background 0.2s;
+      transition: border 0.2s ease, transform 0.2s ease;
     }
-    button:hover {
-      background-color: #2ea043;
+
+    .file-input:hover {
+      border-color: rgba(0, 255, 255, 0.3);
+      transform: translateY(-1px);
     }
-    canvas {
-      display: block;
-      margin: 30px auto;
-      background: #000;
-      border-radius: 8px;
+
+    .file-input span.label {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
     }
-    audio {
-      margin-top: 20px;
+
+    .file-input strong {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .file-input input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-name {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    form.upload button {
+      height: 100%;
+      padding: 18px 22px;
+      border-radius: 16px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      color: #001216;
+      background: linear-gradient(135deg, rgba(0, 255, 255, 0.9), rgba(124, 58, 237, 0.9));
+      box-shadow: 0 20px 40px rgba(0, 255, 255, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    form.upload button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 28px 50px rgba(0, 255, 255, 0.3);
+    }
+
+    section.player {
+      display: grid;
+      gap: 16px;
+    }
+
+    audio#audio-player {
+      width: 100%;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(0, 255, 255, 0.08);
+      padding: 6px;
+    }
+
+    canvas#visualiser {
+      width: 100%;
+      height: auto;
+      max-height: 320px;
+      background: linear-gradient(160deg, rgba(5, 8, 14, 0.95), rgba(2, 4, 8, 0.9));
+      border-radius: 18px;
+      border: 1px solid rgba(0, 255, 255, 0.12);
+      box-shadow: 0 0 35px rgba(0, 255, 255, 0.25);
+    }
+
+    section.plots {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    section.plots figure {
+      margin: 0;
+      background: rgba(8, 12, 24, 0.7);
+      border-radius: 18px;
+      padding: 18px;
+      border: 1px solid rgba(0, 255, 255, 0.08);
+      display: grid;
+      gap: 12px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
+    section.plots img {
+      width: 100%;
+      border-radius: 12px;
+      background: rgba(2, 4, 8, 0.6);
+    }
+
+    section.plots figcaption {
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      form.upload {
+        grid-template-columns: 1fr;
+      }
+      form.upload button {
+        width: 100%;
+      }
     }
   </style>
 </head>
 
 <body>
-  <h1>PulseFrame 🎵</h1>
-  <p>Upload a <code>.wav</code> file to generate a waveform, frequency spectrum, and live animation.</p>
+  <main class="wrapper">
+    <header class="hero">
+      <h1>PulseFrame</h1>
+      <p>Upload a WAV track to generate static plots and watch a live spectrum animate in real-time.</p>
+    </header>
 
-    <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".wav" required />
-    <button type="submit">Generate</button>
-  </form>
-
-  <!-- Container for Flask-rendered waveform + spectrum -->
-  <div id="results">
-    {% if waveform_url %}
-      <img src="{{ waveform_url }}" alt="Waveform" style="width: 80%; max-width: 800px; margin-top: 20px; border-radius: 8px;" />
+    {% if error_message %}
+      <div class="alert">{{ error_message }}</div>
     {% endif %}
-    {% if spectrum_url %}
-      <img src="{{ spectrum_url }}" alt="Spectrum" style="width: 80%; max-width: 800px; margin-top: 20px; border-radius: 8px;" />
-    {% endif %}
-  </div>
 
-  <!-- 🎧 Live Spectrum Visualiser -->
+    <form class="upload" method="POST" enctype="multipart/form-data">
+      <label class="file-input">
+        <span class="label">Select audio</span>
+        <strong>Choose a .wav file</strong>
+        <span class="file-name" data-default="No file selected">No file selected</span>
+        <input type="file" id="audio-file" name="audio_file" accept=".wav" required />
+      </label>
+      <button type="submit">Process Audio</button>
+    </form>
+
+    <section class="player">
+      <audio id="audio-player" controls {% if audio_url %}src="{{ audio_url }}"{% endif %}></audio>
+      <canvas id="visualiser" width="960" height="260"></canvas>
+    </section>
+
+    <section class="plots">
+      {% if waveform_url %}
+        <figure>
+          <img src="{{ waveform_url }}" alt="Waveform plot" loading="lazy" />
+          <figcaption>Waveform</figcaption>
+        </figure>
+      {% endif %}
+      {% if spectrum_url %}
+        <figure>
+          <img src="{{ spectrum_url }}" alt="Frequency spectrum plot" loading="lazy" />
+          <figcaption>Frequency Spectrum</figcaption>
+        </figure>
+      {% endif %}
+    </section>
+  </main>
+
   <script>
-    const fileInput = document.querySelector('input[type="file"]');
-    let audioContext, analyser, dataArray, bufferLength, source, canvas, ctx, audio;
+    (() => {
+      const fileInput = document.getElementById("audio-file");
+      const audioElement = document.getElementById("audio-player");
+      const canvas = document.getElementById("visualiser");
+      const ctx = canvas.getContext("2d");
+      const fileNameLabel = document.querySelector(".file-name");
 
-    fileInput.addEventListener('change', event => {
-      const file = event.target.files[0];
-      if (!file) return;
+      let audioContext;
+      let analyser;
+      let dataArray;
+      let animationId;
+      let mediaElementSource;
+      let fileObjectUrl = null;
 
-      // Remove existing visualiser + audio elements if they exist
-      document.querySelectorAll('audio, canvas').forEach(el => el.remove());
+      const BAR_GAP_RATIO = 0.25;
+      const MAX_BARS = 160;
 
-      // Create an audio element for playback
-      const url = URL.createObjectURL(file);
-      audio = new Audio(url);
-      audio.controls = true;
-      document.body.appendChild(audio);
+      const setFileName = (name) => {
+        const defaultText = fileNameLabel?.dataset?.default || "No file selected";
+        fileNameLabel.textContent = name || defaultText;
+      };
 
-      // Create canvas for spectrum animation
-      canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 200;
-      ctx = canvas.getContext('2d');
-      document.body.appendChild(canvas);
-
-      // Create Web Audio context and analyser
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioContext.createAnalyser();
-      source = audioContext.createMediaElementSource(audio);
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-
-      analyser.fftSize = 256;
-      bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
-
-      // Draw animated spectrum bars
-      function draw() {
-        requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
-
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const barWidth = (canvas.width / bufferLength) * 2.5;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = dataArray[i];
-          const hue = i * 3; // color spread
-          ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-          ctx.fillRect(x, canvas.height - barHeight / 1.5, barWidth, barHeight / 1.5);
-          x += barWidth + 1;
+      const initialiseAnalyser = () => {
+        if (audioContext) {
+          return;
         }
-      }
 
-      audio.onplay = () => {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) {
+          console.warn("Web Audio API not supported in this browser.");
+          return;
+        }
+
+        audioContext = new AudioCtx();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 4096;
+        analyser.smoothingTimeConstant = 0.82;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        mediaElementSource = audioContext.createMediaElementSource(audioElement);
+        mediaElementSource.connect(analyser);
+        analyser.connect(audioContext.destination);
+      };
+
+      const clearCanvas = () => {
+        ctx.fillStyle = "rgba(2, 6, 16, 0.82)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      };
+
+      const drawSpectrum = () => {
+        if (!analyser || !dataArray) {
+          clearCanvas();
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+        clearCanvas();
+
+        const bufferLength = dataArray.length;
+        const step = Math.max(1, Math.floor(bufferLength / MAX_BARS));
+        const barCount = Math.max(1, Math.floor(bufferLength / step));
+        const barSlotWidth = canvas.width / barCount;
+        const barWidth = barSlotWidth * (1 - BAR_GAP_RATIO);
+        const halfGap = (barSlotWidth - barWidth) / 2;
+
+        for (let barIndex = 0; barIndex < barCount; barIndex++) {
+          const dataIndex = barIndex * step;
+          let peak = 0;
+          for (let i = dataIndex; i < dataIndex + step && i < bufferLength; i++) {
+            if (dataArray[i] > peak) {
+              peak = dataArray[i];
+            }
+          }
+
+          const normalized = peak / 255;
+          const emphasised = Math.pow(normalized, 0.75);
+          const highBandBoost = 0.9 + 0.6 * (barIndex / (barCount - 1 || 1));
+          const value = Math.min(1, emphasised * highBandBoost * 1.1);
+          const barHeight = value * canvas.height * 0.9;
+          const x = barIndex * barSlotWidth + halfGap;
+
+          const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - barHeight);
+          gradient.addColorStop(0, "rgba(0, 255, 255, 0.06)");
+          gradient.addColorStop(0.5, "rgba(124, 58, 237, 0.6)");
+          gradient.addColorStop(1, "rgba(0, 255, 255, 0.95)");
+
+          ctx.fillStyle = gradient;
+          ctx.shadowColor = "rgba(0, 255, 255, 0.75)";
+          ctx.shadowBlur = barHeight > 0 ? 22 : 0;
+          ctx.fillRect(x, canvas.height - barHeight, barWidth * 0.75, barHeight);
+        }
+
+        animationId = requestAnimationFrame(drawSpectrum);
+      };
+
+      const startAnimation = () => {
+        if (!audioContext) {
+          initialiseAnalyser();
+        }
+
+        if (!audioContext) {
+          return;
+        }
+
         if (audioContext.state === "suspended") {
           audioContext.resume();
         }
-        draw();
+
+        if (!animationId) {
+          animationId = requestAnimationFrame(drawSpectrum);
+        }
       };
-    });
+
+      const stopAnimation = () => {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+          animationId = null;
+        }
+        clearCanvas();
+      };
+
+      clearCanvas();
+
+      audioElement.addEventListener("play", startAnimation);
+      audioElement.addEventListener("pause", stopAnimation);
+      audioElement.addEventListener("ended", stopAnimation);
+
+      fileInput.addEventListener("change", (event) => {
+        const [file] = event.target.files;
+
+        if (fileObjectUrl) {
+          URL.revokeObjectURL(fileObjectUrl);
+          fileObjectUrl = null;
+        }
+
+        if (!file) {
+          setFileName();
+          stopAnimation();
+          audioElement.removeAttribute("src");
+          audioElement.load();
+          return;
+        }
+
+        setFileName(file.name);
+        fileObjectUrl = URL.createObjectURL(file);
+        audioElement.src = fileObjectUrl;
+        audioElement.load();
+        stopAnimation();
+      });
+    })();
   </script>
 </body>
 </html>
